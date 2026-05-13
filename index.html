@@ -56,7 +56,6 @@
         .search-input { width: 100%; padding: 10px 14px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
         .summary-box { background: linear-gradient(135deg, #e8f4fd 0%, #ddd6fe 100%); padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; }
         .summary-box strong { color: #4c1d95; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
@@ -418,62 +417,24 @@
                     ` +
                     trabajadores.map(t => {
                         const existing = asignaciones.find(a => a.trabajador === t.codigo && a.fecha === today);
-                        // Puede tener múltiples asignaciones
-                        const existingAll = asignaciones.filter(a => a.trabajador === t.codigo && a.fecha === today && !a.no_asistio);
                         const noAsistio = existing?.no_asistio || false;
                         
+                        // Obtener valores por defecto según el área
                         const defaults = ACTIVIDAD_DEFAULT_POR_AREA[t.area] || {};
-                        const unidadDefault = existingAll[0]?.unidad || defaults.unidad || '';
-                        const actividadDefault = existingAll[0]?.actividad || defaults.actividad || '';
-                        const tieneDefault = existingAll.length === 0 && defaults.unidad;
-                        
-                        // Detectar si falta módulo en alguna asignación existente
-                        const faltaModulo = existingAll.some(a => !a.modulos || a.modulos.length === 0);
-                        
-                        // Generar filas de actividades adicionales guardadas
-                        const actividadesExtra = existingAll.slice(1).map((a, idx) => `
-                            <div class="actividad-extra" id="extra_${t.codigo}_${idx}" style="background: #eff6ff; border: 2px solid #93c5fd; border-radius: 8px; padding: 12px; margin-top: 10px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <strong style="color: #1e40af; font-size: 13px;">Actividad ${idx + 2}</strong>
-                                    <button onclick="eliminarActividad('${t.codigo}', ${idx + 1})" style="background: #fecaca; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #991b1b;">✕ Quitar</button>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <select id="unidad_${t.codigo}_${idx + 1}" onchange="updateActividades('${t.codigo}', ${idx + 1})">
-                                            <option value="">Unidad...</option>
-                                            ${UNIDADES.map(u => `<option value="${u.id}" ${a.unidad === u.id ? 'selected' : ''}>${u.nombre}</option>`).join('')}
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <select id="actividad_${t.codigo}_${idx + 1}" data-default="${a.actividad}">
-                                            <option value="">Actividad...</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <input type="number" id="horas_${t.codigo}_${idx + 1}" value="${a.horas || 0}" min="0" max="12" step="0.5" placeholder="Horas">
-                                    </div>
-                                </div>
-                                <div class="form-group" style="margin-top: 8px;">
-                                    <div class="modulos-container" id="modulos_${t.codigo}_${idx + 1}" style="max-height: 150px;">
-                                        <p style="color: #a0aec0; padding: 10px; text-align: center; font-size: 13px;">Seleccione unidad</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('');
+                        const unidadDefault = existing?.unidad || defaults.unidad || '';
+                        const actividadDefault = existing?.actividad || defaults.actividad || '';
+                        const tieneDefault = !existing && defaults.unidad;
                         
                         return `
-                            <div class="worker-card" id="card_${t.codigo}" style="${noAsistio ? 'background: #fef3c7; border-color: #f59e0b;' : faltaModulo && !noAsistio ? 'border-color: #f87171; border-width: 2px;' : ''}">
+                            <div class="worker-card" id="card_${t.codigo}" style="${noAsistio ? 'background: #fef3c7; border-color: #f59e0b;' : ''}">
                                 <h3>
                                     ${t.nombre}
                                     <span style="font-size: 11px; color: #718096; font-weight: normal;">${t.codigo}</span>
-                                    ${existingAll.length > 0 && !noAsistio ? '<span class="badge">✓ ASIGNADO</span>' : ''}
-                                    ${existingAll.length > 1 ? `<span class="badge" style="background: #dbeafe; color: #1e40af;">+${existingAll.length} actividades</span>` : ''}
+                                    ${existing && !noAsistio ? '<span class="badge">✓ ASIGNADO</span>' : ''}
                                     ${noAsistio ? '<span class="badge" style="background: #fed7aa; color: #c2410c;">🚫 NO ASISTIÓ</span>' : ''}
                                     ${tieneDefault ? '<span class="badge" style="background: #dbeafe; color: #1e40af;">📌 PRE-CARGADO</span>' : ''}
-                                    ${faltaModulo && !noAsistio ? '<span class="badge" style="background: #fecaca; color: #991b1b; animation: pulse 1.5s infinite;">⚠️ FALTA MÓDULO</span>' : ''}
                                 </h3>
                                 
-                                <!-- NO ASISTIÓ -->
                                 <div style="background: #fff7ed; border: 2px solid #fdba74; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
                                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: #9a3412;">
                                         <input type="checkbox" id="noAsistio_${t.codigo}" style="width: 20px; height: 20px; margin: 0;" 
@@ -481,42 +442,25 @@
                                         🚫 NO ASISTIÓ HOY
                                     </label>
                                     <div id="motivoContainer_${t.codigo}" style="margin-top: 10px; ${noAsistio ? '' : 'display: none;'}">
+                                        <label style="font-size: 12px; color: #9a3412; margin-bottom: 5px; display: block;">Motivo de inasistencia:</label>
                                         <select id="motivo_${t.codigo}" style="width: 100%; padding: 8px; border: 1px solid #fdba74; border-radius: 6px;">
-                                            <option value="">Motivo (opcional)...</option>
-                                            <option value="ENFERMEDAD" ${existing?.motivo_inasistencia === 'ENFERMEDAD' ? 'selected' : ''}>🤒 Enfermedad</option>
-                                            <option value="INCAPACIDAD" ${existing?.motivo_inasistencia === 'INCAPACIDAD' ? 'selected' : ''}>🏥 Incapacidad médica</option>
-                                            <option value="PERMISO" ${existing?.motivo_inasistencia === 'PERMISO' ? 'selected' : ''}>📋 Permiso autorizado</option>
-                                            <option value="CALAMIDAD" ${existing?.motivo_inasistencia === 'CALAMIDAD' ? 'selected' : ''}>🏠 Calamidad doméstica</option>
-                                            <option value="VACACIONES" ${existing?.motivo_inasistencia === 'VACACIONES' ? 'selected' : ''}>🏖️ Vacaciones</option>
-                                            <option value="COMPENSATORIO" ${existing?.motivo_inasistencia === 'COMPENSATORIO' ? 'selected' : ''}>🔄 Compensatorio</option>
-                                            <option value="SIN_AVISO" ${existing?.motivo_inasistencia === 'SIN_AVISO' ? 'selected' : ''}>📵 Se ausentó sin avisar</option>
-                                            <option value="INJUSTIFICADA" ${existing?.motivo_inasistencia === 'INJUSTIFICADA' ? 'selected' : ''}>❌ Injustificada</option>
-                                            <option value="OTRO" ${existing?.motivo_inasistencia === 'OTRO' ? 'selected' : ''}>📝 Otro</option>
+                                            <option value="">Seleccionar motivo...</option>
+                                            <option value="ENFERMEDAD" ${existing?.motivo_inasistencia === 'ENFERMEDAD' ? 'selected' : ''}>Enfermedad</option>
+                                            <option value="INCAPACIDAD" ${existing?.motivo_inasistencia === 'INCAPACIDAD' ? 'selected' : ''}>Incapacidad médica</option>
+                                            <option value="PERMISO" ${existing?.motivo_inasistencia === 'PERMISO' ? 'selected' : ''}>Permiso autorizado</option>
+                                            <option value="CALAMIDAD" ${existing?.motivo_inasistencia === 'CALAMIDAD' ? 'selected' : ''}>Calamidad doméstica</option>
+                                            <option value="VACACIONES" ${existing?.motivo_inasistencia === 'VACACIONES' ? 'selected' : ''}>Vacaciones</option>
+                                            <option value="COMPENSATORIO" ${existing?.motivo_inasistencia === 'COMPENSATORIO' ? 'selected' : ''}>Compensatorio</option>
+                                            <option value="INJUSTIFICADA" ${existing?.motivo_inasistencia === 'INJUSTIFICADA' ? 'selected' : ''}>Inasistencia injustificada</option>
+                                            <option value="OTRO" ${existing?.motivo_inasistencia === 'OTRO' ? 'selected' : ''}>Otro</option>
                                         </select>
-                                        <input type="text" id="obsInasistencia_${t.codigo}" placeholder="Observaciones (opcional)" 
+                                        <input type="text" id="obsInasistencia_${t.codigo}" placeholder="Observaciones adicionales (opcional)" 
                                                value="${existing?.obs_inasistencia || ''}" 
                                                style="width: 100%; padding: 8px; border: 1px solid #fdba74; border-radius: 6px; margin-top: 8px;">
                                     </div>
                                 </div>
                                 
-                                <!-- ASIGNACIÓN PRINCIPAL -->
                                 <div id="asignacionFields_${t.codigo}" style="${noAsistio ? 'display: none;' : ''}">
-                                
-                                    <!-- ADVERTENCIA MÓDULO FALTANTE -->
-                                    ${faltaModulo ? `
-                                        <div style="background: #fef2f2; border: 2px solid #f87171; border-radius: 8px; padding: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                                            <span style="font-size: 20px;">⚠️</span>
-                                            <div>
-                                                <strong style="color: #991b1b;">Falta seleccionar módulo</strong>
-                                                <br><small style="color: #b91c1c;">Esta asignación no tiene módulo asignado. Por favor selecciona al menos uno.</small>
-                                            </div>
-                                        </div>
-                                    ` : ''}
-                                    
-                                    <!-- Actividad 1 -->
-                                    <div style="border-left: 4px solid #667eea; padding-left: 12px; margin-bottom: 5px;">
-                                        <strong style="color: #4c1d95; font-size: 13px;">Actividad 1</strong>
-                                    </div>
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label>Unidad de Negocio</label>
@@ -525,43 +469,37 @@
                                                 ${UNIDADES.map(u => `<option value="${u.id}" ${unidadDefault === u.id ? 'selected' : ''}>${u.nombre}</option>`).join('')}
                                             </select>
                                         </div>
+                                        
                                         <div class="form-group">
                                             <label>Actividad</label>
                                             <select id="actividad_${t.codigo}" data-default="${actividadDefault}">
-                                                <option value="">Seleccione unidad...</option>
+                                                <option value="">Seleccione unidad primero...</option>
                                             </select>
                                         </div>
+                                        
                                         <div class="form-group">
-                                            <label>Horas</label>
-                                            <input type="number" id="horas_${t.codigo}" value="${existingAll[0]?.horas || 8}" min="0" max="12" step="0.5">
+                                            <label>Horas Base</label>
+                                            <input type="number" id="horas_${t.codigo}" value="${existing?.horas || 8}" min="0" max="12" step="0.5">
                                         </div>
+                                        
                                         <div class="form-group">
                                             <label style="display: flex; align-items: center; gap: 6px;">
-                                                <input type="checkbox" id="extras_${t.codigo}" style="width: auto; margin: 0;" ${existingAll[0]?.extras_autorizadas ? 'checked' : ''}>
-                                                Extras
+                                                <input type="checkbox" id="extras_${t.codigo}" style="width: auto; margin: 0;" ${existing?.extras_autorizadas ? 'checked' : ''}>
+                                                Extras Autorizadas
                                             </label>
-                                            <small style="color: #718096; font-size: 11px;">Sin marcar = máx 8h</small>
+                                            <small style="color: #718096; font-size: 11px;">Sin marcar = máximo 8h</small>
                                         </div>
                                     </div>
+                                    
                                     <div class="form-group">
                                         <label>
-                                            Módulos ${faltaModulo ? '<span style="color: #dc2626; font-weight: 700;">← ¡REQUERIDO!</span>' : ''}
+                                            Módulos
                                             <button class="select-all-btn" onclick="selectAllModules('${t.codigo}')">✓ Todos</button>
                                         </label>
                                         <div class="modulos-container" id="modulos_${t.codigo}">
                                             <p style="color: #a0aec0; padding: 15px; text-align: center; font-size: 13px;">Seleccione una unidad primero</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- ACTIVIDADES ADICIONALES -->
-                                    <div id="actividadesExtra_${t.codigo}">${actividadesExtra}</div>
-                                    
-                                    <!-- BOTÓN AGREGAR ACTIVIDAD -->
-                                    <button onclick="agregarActividad('${t.codigo}')" 
-                                            style="background: #eff6ff; border: 2px dashed #93c5fd; color: #1e40af; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; width: 100%; margin-top: 10px; transition: all 0.2s;"
-                                            onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
-                                        ➕ Agregar otra actividad del día
-                                    </button>
                                 </div>
                             </div>
                         `;
@@ -589,179 +527,39 @@
             });
         }
         
-        function updateActividades(codigo, idx = null) {
-            const sufijo = idx !== null && idx !== false ? `_${idx}` : '';
-            // Si el segundo parámetro es un objeto (llamada legacy), usar el flujo de carga inicial
-            if (idx !== null && typeof idx === 'object') {
-                const existing = idx;
-                const unidad = document.getElementById(`unidad_${codigo}`)?.value;
-                if (!unidad) return;
-                const actSelect = document.getElementById(`actividad_${codigo}`);
-                const acts = ACTIVIDADES.filter(a => a.unidad === unidad);
-                actSelect.innerHTML = '<option value="">Seleccionar...</option>' +
-                    acts.map(a => `<option value="${a.codigo}" ${existing?.actividad === a.codigo ? 'selected' : ''}>${a.nombre}</option>`).join('');
-                const modContainer = document.getElementById(`modulos_${codigo}`);
-                const mods = MODULOS.filter(m => m.unidad === unidad);
-                modContainer.innerHTML = mods.map(m => `
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="mod_${codigo}_${m.modulo}" value="${m.modulo}" ${existing?.modulos?.includes(m.modulo) ? 'checked' : ''}>
-                        <label for="mod_${codigo}_${m.modulo}">Módulo ${m.modulo}</label>
-                    </div>`).join('') || '<p style="color: #a0aec0; padding: 10px; text-align: center; font-size: 13px;">Sin módulos</p>';
-                return;
-            }
-
-            const unidad = document.getElementById(`unidad_${codigo}${sufijo}`)?.value;
-            if (!unidad) return;
-
-            const actSelect = document.getElementById(`actividad_${codigo}${sufijo}`);
-            const defaultVal = actSelect?.dataset?.default || '';
+        function updateActividades(codigo, existing = null) {
+            const unidad = document.getElementById(`unidad_${codigo}`).value;
+            
+            const actSelect = document.getElementById(`actividad_${codigo}`);
             const acts = ACTIVIDADES.filter(a => a.unidad === unidad);
             actSelect.innerHTML = '<option value="">Seleccionar...</option>' +
-                acts.map(a => `<option value="${a.codigo}" ${defaultVal === a.codigo ? 'selected' : ''}>${a.nombre}</option>`).join('');
-
-            const modContainer = document.getElementById(`modulos_${codigo}${sufijo}`);
+                acts.map(a => `<option value="${a.codigo}" ${existing?.actividad === a.codigo ? 'selected' : ''}>${a.nombre}</option>`).join('');
+            
+            const modContainer = document.getElementById(`modulos_${codigo}`);
             const mods = MODULOS.filter(m => m.unidad === unidad);
-            modContainer.innerHTML = mods.map(m => `
-                <div class="checkbox-item">
-                    <input type="checkbox" id="mod_${codigo}${sufijo}_${m.modulo}" value="${m.modulo}">
-                    <label for="mod_${codigo}${sufijo}_${m.modulo}">Módulo ${m.modulo}</label>
-                </div>`).join('') || '<p style="color: #a0aec0; padding: 10px; text-align: center; font-size: 13px;">Sin módulos</p>';
+            
+            if (mods.length === 0) {
+                modContainer.innerHTML = '<p style="color: #a0aec0; padding: 15px; text-align: center; font-size: 13px;">No hay módulos para esta unidad</p>';
+            } else {
+                modContainer.innerHTML = mods.map(m => {
+                    const checked = existing?.modulos?.includes(m.modulo) ? 'checked' : '';
+                    return `
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="mod_${codigo}_${m.modulo}" value="${m.modulo}" ${checked}>
+                            <label for="mod_${codigo}_${m.modulo}">Módulo ${m.modulo}</label>
+                        </div>
+                    `;
+                }).join('');
+            }
         }
         
-        function agregarActividad(codigo) {
-            const container = document.getElementById(`actividadesExtra_${codigo}`);
-            const idx = container.querySelectorAll('.actividad-extra').length + 1;
-            
-            const div = document.createElement('div');
-            div.className = 'actividad-extra';
-            div.id = `extra_${codigo}_${idx - 1}`;
-            div.style = 'background: #eff6ff; border: 2px solid #93c5fd; border-radius: 8px; padding: 12px; margin-top: 10px;';
-            div.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <strong style="color: #1e40af; font-size: 13px;">Actividad ${idx + 1}</strong>
-                    <button onclick="this.closest('.actividad-extra').remove()" style="background: #fecaca; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #991b1b;">✕ Quitar</button>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <select id="unidad_${codigo}_${idx}" onchange="updateActividades('${codigo}', ${idx})">
-                            <option value="">Unidad...</option>
-                            ${UNIDADES.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <select id="actividad_${codigo}_${idx}">
-                            <option value="">Actividad...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <input type="number" id="horas_${codigo}_${idx}" value="0" min="0" max="12" step="0.5" placeholder="Horas">
-                    </div>
-                </div>
-                <div class="form-group" style="margin-top: 8px;">
-                    <div class="modulos-container" id="modulos_${codigo}_${idx}" style="max-height: 150px;">
-                        <p style="color: #a0aec0; padding: 10px; text-align: center; font-size: 13px;">Seleccione unidad</p>
-                    </div>
-                </div>
-            `;
-            container.appendChild(div);
-        }
-
-        function eliminarActividad(codigo, idx) {
-            const el = document.getElementById(`extra_${codigo}_${idx - 1}`);
-            if (el) el.remove();
-        }
-
-        function selectAllModules(codigo, idx = null) {
-            const id = idx !== null ? `modulos_${codigo}_${idx}` : `modulos_${codigo}`;
-            const checkboxes = document.querySelectorAll(`#${id} input[type="checkbox"]`);
+        function selectAllModules(codigo) {
+            const checkboxes = document.querySelectorAll(`#modulos_${codigo} input[type="checkbox"]`);
             const allChecked = Array.from(checkboxes).every(cb => cb.checked);
             checkboxes.forEach(cb => cb.checked = !allChecked);
         }
-
-        function saveAssignments() {
-            const today = new Date().toISOString().split('T')[0];
-            const trabajadoresVisibles = TRABAJADORES.filter(t => document.getElementById(`noAsistio_${t.codigo}`) !== null).map(t => t.codigo);
-            asignaciones = asignaciones.filter(a => a.fecha !== today || !trabajadoresVisibles.includes(a.trabajador));
-            
-            let countAsignados = 0;
-            let countInasistencias = 0;
-            let sinModulo = [];
-
-            TRABAJADORES.forEach(t => {
-                const noAsistioEl = document.getElementById(`noAsistio_${t.codigo}`);
-                if (!noAsistioEl) return;
-
-                const noAsistio = noAsistioEl.checked;
-
-                if (noAsistio) {
-                    const motivo = document.getElementById(`motivo_${t.codigo}`)?.value || '';
-                    const obsInasistencia = document.getElementById(`obsInasistencia_${t.codigo}`)?.value || '';
-
-                    asignaciones.push({
-                        fecha: today,
-                        trabajador: t.codigo,
-                        nombre: t.nombre,
-                        area: t.area,
-                        no_asistio: true,
-                        motivo_inasistencia: motivo,
-                        obs_inasistencia: obsInasistencia,
-                        horas: 0,
-                        modulos: []
-                    });
-                    countInasistencias++;
-                } else {
-                    // ACTIVIDAD PRINCIPAL
-                    const unidad = document.getElementById(`unidad_${t.codigo}`)?.value;
-                    const actividad = document.getElementById(`actividad_${t.codigo}`)?.value;
-                    const horas = parseFloat(document.getElementById(`horas_${t.codigo}`)?.value) || 0;
-                    const extras = document.getElementById(`extras_${t.codigo}`)?.checked || false;
-                    const modulos = Array.from(document.querySelectorAll(`#modulos_${t.codigo} input:checked`)).map(cb => cb.value);
-
-                    if (unidad && actividad) {
-                        if (modulos.length === 0) sinModulo.push(t.nombre);
-                        asignaciones.push({
-                            fecha: today, trabajador: t.codigo, nombre: t.nombre, area: t.area,
-                            unidad, actividad, horas, extras_autorizadas: extras,
-                            modulos, no_asistio: false
-                        });
-                        countAsignados++;
-                    }
-
-                    // ACTIVIDADES ADICIONALES
-                    const extras_container = document.getElementById(`actividadesExtra_${t.codigo}`);
-                    if (extras_container) {
-                        extras_container.querySelectorAll('.actividad-extra').forEach((el, i) => {
-                            const idx = i + 1;
-                            const u2 = document.getElementById(`unidad_${t.codigo}_${idx}`)?.value;
-                            const a2 = document.getElementById(`actividad_${t.codigo}_${idx}`)?.value;
-                            const h2 = parseFloat(document.getElementById(`horas_${t.codigo}_${idx}`)?.value) || 0;
-                            const m2 = Array.from(document.querySelectorAll(`#modulos_${t.codigo}_${idx} input:checked`)).map(cb => cb.value);
-
-                            if (u2 && a2) {
-                                if (m2.length === 0) sinModulo.push(`${t.nombre} (act.${idx + 1})`);
-                                asignaciones.push({
-                                    fecha: today, trabajador: t.codigo, nombre: t.nombre, area: t.area,
-                                    unidad: u2, actividad: a2, horas: h2,
-                                    extras_autorizadas: false, modulos: m2, no_asistio: false
-                                });
-                            }
-                        });
-                    }
-                }
-            });
-
-            localStorage.setItem('asignaciones', JSON.stringify(asignaciones));
-
-            let msg = `✅ ${countAsignados} asignaciones guardadas\n🚫 ${countInasistencias} inasistencias\n`;
-            if (sinModulo.length > 0) msg += `\n⚠️ Sin módulo asignado:\n${sinModulo.join('\n')}`;
-
-            const noReportados = TRABAJADORES.length - asignaciones.filter(a => a.fecha === today && trabajadoresVisibles.includes(a.trabajador)).reduce((set, a) => { set.add(a.trabajador); return set; }, new Set()).size;
-            msg += noReportados > 0 ? `\n\n⚠️ ${noReportados} trabajadores sin reportar` : '\n\n✅ Todos los trabajadores reportados';
-
-            alert(msg);
-            actualizarStats();
-            renderAssignment();
-        }
+        
+        function toggleNoAsistio(codigo) {
             const checkbox = document.getElementById(`noAsistio_${codigo}`);
             const motivoContainer = document.getElementById(`motivoContainer_${codigo}`);
             const asignacionFields = document.getElementById(`asignacionFields_${codigo}`);
